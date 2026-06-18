@@ -9,22 +9,33 @@ V3 = BASE + "/합격선_관리_v3.html"
 with io.open(V2, encoding="utf-8") as f:
     lines = f.read().split("\n")
 
-# 1) 추출행 수집
+# 0) v2 기존 RAW 키 집합 (중복 추가 방지)
+def rawkey(r):  # 지역,시험종류,연도,회차,임용기관,직렬,직류,직급,대상
+    return (r[0],r[1],r[2],r[3],r[5],r[7],r[8],r[9],r[10])
+_rawline0 = next(l for l in lines if l.startswith("const RAW=[["))
+_v2rows = json.loads(_rawline0[len("const RAW="):].rstrip(";"))
+v2keys = set(rawkey(r) for r in _v2rows)
+print("v2 기존 행:", len(_v2rows))
+
+# 1) 추출행 수집 (v2에 이미 있는 키는 제외)
 all_rows = []
 sources = []
 flags_all = []
+skipped = 0
 files = sorted(glob.glob(BASE + "/_work/out/*.json"))
 for p in files:
     with io.open(p, encoding="utf-8") as f:
         d = json.load(f)
     rows = d.get("rows", [])
-    all_rows.extend(rows)
+    kept = [r for r in rows if rawkey(r) not in v2keys]
+    skipped += len(rows) - len(kept)
+    all_rows.extend(kept)
     if d.get("source"): sources.append(d["source"])
     for fl in d.get("flags", []):
         flags_all.append(f"[{d.get('region','')}] {fl}")
-    print(f"  + {os.path.basename(p)}: {len(rows)}행")
+    print(f"  + {os.path.basename(p)}: {len(kept)}행" + (f" (중복 {len(rows)-len(kept)} 제외)" if len(kept)!=len(rows) else ""))
 
-print("총 추가행:", len(all_rows))
+print("총 추가행:", len(all_rows), " | v2중복 제외:", skipped)
 
 # 2) RAW (line index 66) 끝에 삽입: '...]];' -> '...],<newrows>];'
 RAW_I = None

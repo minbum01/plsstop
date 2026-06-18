@@ -5,12 +5,16 @@ BASE = r"C:/Users/admin/Documents/이민범 개발/합격선추가"
 with io.open(BASE+"/합격선_관리_v2.html", encoding="utf-8") as f:
     lines = f.read().split("\n")
 
+def rawkey(r): return (r[0],r[1],r[2],r[3],r[5],r[7],r[8],r[9],r[10])
+_rl0=next(l for l in lines if l.startswith("const RAW=[["))
+v2keys=set(rawkey(r) for r in json.loads(_rl0[len("const RAW="):].rstrip(";")))
+
 rows=[]; sources=[]
 for p in sorted(glob.glob(BASE+"/_work/out/*.json")):
     d=json.load(io.open(p,encoding="utf-8"))
-    rows.extend(d.get("rows",[]))
+    rows.extend([r for r in d.get("rows",[]) if rawkey(r) not in v2keys])  # v2 중복 제외
     if d.get("source"): sources.append(d["source"])
-print("추가분 행수:", len(rows), " 출처파일:", len(set(sources)))
+print("추가분 행수(v2중복 제외):", len(rows), " 출처파일:", len(set(sources)))
 
 # RAW 교체 (전체를 추가분으로)
 for i,l in enumerate(lines):
